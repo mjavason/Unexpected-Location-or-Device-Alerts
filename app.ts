@@ -12,6 +12,13 @@ const app = express();
 dotenv.config({ path: './.env' });
 const PORT = process.env.PORT || 5000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const users: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  userAgent: string;
+}[] = [];
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -22,7 +29,114 @@ setupSwagger(app, BASE_URL);
 //#endregion App Setup
 
 //#region Code here
-console.log('Hello world');
+/**
+ * @swagger
+ * /register:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [User]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 example: John
+ *               lastName:
+ *                 type: string
+ *                 example: Doe
+ *               email:
+ *                 type: string
+ *                 example: testerZero@gmail.com
+ *               password:
+ *                 type: string
+ *                 example: password123
+ *     responses:
+ *       200:
+ *         description: User registered successfully
+ *       400:
+ *         description: Bad request
+ */
+app.post('/register', (req: Request, res: Response) => {
+  const {
+    firstName = 'John',
+    lastName = 'Doe',
+    email,
+    password,
+    userAgent = undefined,
+  } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({
+      message: 'email and password are required',
+    });
+  }
+
+  const isDuplicate = users.find((u) => u.email === email.trim().toLowerCase());
+  if (isDuplicate)
+    return res.status(401).json({ message: 'Email already exists' });
+
+  users.push({
+    firstName,
+    lastName,
+    email: email.trim().toLowerCase(),
+    password: password.trim(),
+    userAgent,
+  });
+  res.status(200).json({
+    message: 'User registered successfully',
+    data: { firstName, lastName, email: email.trim().toLowerCase(), userAgent },
+  });
+});
+
+/**
+ * @swagger
+ * /login:
+ *   post:
+ *     summary: Login a user
+ *     tags: [User]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: testerzero@gmail.com
+ *               password:
+ *                 type: string
+ *                 example: password123
+ *     responses:
+ *       200:
+ *         description: User logged in successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ */
+app.post('/login', (req: Request, res: Response) => {
+  const { email, password } = req.body;
+  const user = users.find(
+    (u) =>
+      u.email === email.trim().toLowerCase() && u.password === password.trim()
+  );
+  if (!user)
+    return res.status(401).json({ message: 'Invalid email or password' });
+
+  res.status(200).json({
+    message: 'User logged in successfully',
+    data: {
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+    },
+  });
+});
+
 //#endregion
 
 //#region Server Setup
