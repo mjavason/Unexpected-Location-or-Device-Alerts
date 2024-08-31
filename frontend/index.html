@@ -1,21 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Home</title>
-</head>
-<body>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        text-align: center;
+      }
+      h1 {
+        color: #333;
+      }
+      button {
+        background-color: #dc3545;
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        margin-top: 20px;
+      }
+      button:hover {
+        background-color: #c82333;
+      }
+      .do-stuff-button {
+        background-color: #007bff;
+        margin-top: 10px;
+      }
+      .do-stuff-button:hover {
+        background-color: #0056b3;
+      }
+    </style>
+  </head>
+  <body>
     <h1 id="welcomeMessage"></h1>
+    <p id="userAgent"></p>
+    <button id="logoutButton">Logout</button>
+    <button id="doStuffButton" class="do-stuff-button">Do Stuff</button>
 
     <script>
-        const storedUser = JSON.parse(localStorage.getItem('user'));
+      const storedUser = JSON.parse(localStorage.getItem('user'));
 
-        if (storedUser) {
-            document.getElementById('welcomeMessage').textContent = `Welcome ${storedUser.firstname} ${storedUser.lastname}`;
-        } else {
-            window.location.href = 'login.html'; // Redirect to login page if user is not logged in
-        }
+      if (storedUser) {
+        document.getElementById(
+          'welcomeMessage'
+        ).textContent = `Welcome ${storedUser.firstName} ${storedUser.lastName}`;
+        document.getElementById(
+          'userAgent'
+        ).textContent = `${storedUser.userAgent}`;
+      } else {
+        window.location.href = 'login.html'; // Redirect to login page if user is not logged in
+      }
+
+      document
+        .getElementById('logoutButton')
+        .addEventListener('click', function () {
+          localStorage.removeItem('user'); // Clear user data
+          window.location.href = 'login.html'; // Redirect to login page
+        });
+
+      document
+        .getElementById('doStuffButton')
+        .addEventListener('click', async function () {
+          const email = storedUser.email; // Use the email from the stored user
+
+          try {
+            const response = await fetch(
+              `https://q2qm7dd4-5000.uks1.devtunnels.ms/do-stuff/${encodeURIComponent(email)}`,
+              {
+                method: 'POST',
+              }
+            );
+
+            const message = await response.text();
+
+            if (response.ok) {
+              alert(message);
+            } else {
+              alert('Failed to perform action: ' + message);
+            }
+          } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+          }
+        });
     </script>
-</body>
+  </body>
 </html>

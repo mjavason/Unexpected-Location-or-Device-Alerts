@@ -18,6 +18,7 @@ const users: {
   email: string;
   password: string;
   userAgent: string;
+  disabled: boolean;
 }[] = [];
 
 app.use(express.json());
@@ -84,8 +85,9 @@ app.post('/register', (req: Request, res: Response) => {
     email: email.trim().toLowerCase(),
     password: password.trim(),
     userAgent,
+    disabled: false,
   });
-  res.status(200).json({
+  return res.status(200).json({
     message: 'User registered successfully',
     data: { firstName, lastName, email: email.trim().toLowerCase(), userAgent },
   });
@@ -119,22 +121,104 @@ app.post('/register', (req: Request, res: Response) => {
  *         description: Unauthorized
  */
 app.post('/login', (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  const { email, password, userAgent } = req.body;
   const user = users.find(
     (u) =>
-      u.email === email.trim().toLowerCase() && u.password === password.trim()
+      u.email === email.trim().toLowerCase() &&
+      u.password === password.trim() &&
+      u.disabled === false
   );
   if (!user)
     return res.status(401).json({ message: 'Invalid email or password' });
 
-  res.status(200).json({
+  if (user.userAgent !== userAgent) {
+    console.log(
+      `User agent mismatch. previous: ${user.userAgent}. current: ${userAgent}`
+    );
+    const userIndex = users.findIndex(
+      (u) => u.email === email.trim().toLowerCase()
+    );
+    users[userIndex].userAgent = userAgent;
+  }
+
+  return res.status(200).json({
     message: 'User logged in successfully',
     data: {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      userAgent: user.userAgent,
     },
   });
+});
+
+/**
+ * @swagger
+ * /disable/{email}:
+ *   get:
+ *     summary: Disable a user account
+ *     tags: [User]
+ *     parameters:
+ *       - in: path
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: testerzero@gmail.com
+ *     responses:
+ *       200:
+ *         description: User account disabled successfully
+ *       401:
+ *         description: Invalid email address
+ */
+app.get('/disable/:email', (req: Request, res: Response) => {
+  const { email } = req.params;
+
+  const userIndex = users.findIndex(
+    (u) => u.email === email.trim().toLowerCase()
+  );
+  if (userIndex < 0)
+    return res.status(401).json({ message: 'Invalid email address' });
+
+  users[userIndex].disabled = true;
+  return res.send('User account disabled successfully');
+});
+
+/**
+ * @swagger
+ * /do-stuff/{email}:
+ *   post:
+ *     summary: Perform an action for a user
+ *     tags: [User]
+ *     parameters:
+ *       - in: path
+ *         name: email
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: testerzero@gmail.com
+ *     responses:
+ *       200:
+ *         description: Action performed successfully
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               example: Doing some stuff
+ *       401:
+ *         description: Invalid email address
+ *       403:
+ *         description: User account is disabled
+ */
+app.post('/do-stuff/:email', (req: Request, res: Response) => {
+  const { email } = req.params;
+
+  const user = users.find((u) => u.email === email.trim().toLowerCase());
+  if (!user) return res.status(401).json({ message: 'Invalid email address' });
+
+  if (user.disabled) return res.send('User account disabled');
+
+  return res.send('Doing some stuff');
 });
 
 //#endregion
