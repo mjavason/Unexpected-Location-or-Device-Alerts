@@ -9,8 +9,9 @@
     <h1 id="location"></h1>
     <script>
       navigator.geolocation.getCurrentPosition((position) => {
-        document.getElementById('location').textContent = position
-        console.log(position);
+        document.getElementById('location').textContent =
+          JSON.stringify(position);
+        console.log(JSON.stringify(position));
       });
     </script>
   </body>

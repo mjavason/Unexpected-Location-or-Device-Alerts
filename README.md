@@ -1,5 +1,5 @@
 # Unexpected-Location-or-Device-Alerts
-Simple demonstration of unexpected location or device change during authentication. This boosts security by ensuring the users account isnt compromised; The user can temporarily disable their account if that is the case.
+Simple demonstration of unexpected location or device change during authentication. This boosts security by ensuring the users account isnt compromised; The user can temporarily disable their account if that is the case. If the user logs in with a different device or browser, they get an alert. If the user logs in a new distance of over 100km, they also get an alert.
 
 **Prerequisites**
 

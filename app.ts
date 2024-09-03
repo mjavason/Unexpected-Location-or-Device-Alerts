@@ -2,22 +2,22 @@ import express, { Request, Response, NextFunction } from 'express';
 import 'express-async-errors';
 import cors from 'cors';
 import axios from 'axios';
-import dotenv from 'dotenv';
 import morgan from 'morgan';
 import { setupSwagger } from './swagger.config';
+import { sendMail } from './mail.service';
+import { BASE_URL, PORT } from './constants';
+import { isWithinGeofence, returnMailBody } from './functions';
 
 //#region App Setup
 const app = express();
 
-dotenv.config({ path: './.env' });
-const PORT = process.env.PORT || 5000;
-const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 const users: {
   firstName: string;
   lastName: string;
   email: string;
   password: string;
   userAgent: string;
+  location: { longitude: number; latitude: number };
   disabled: boolean;
 }[] = [];
 
@@ -30,6 +30,10 @@ setupSwagger(app, BASE_URL);
 //#endregion App Setup
 
 //#region Code here
+app.get('/users', async (req: Request, res: Response) => {
+  return res.json(users);
+});
+
 /**
  * @swagger
  * /register:
@@ -68,6 +72,7 @@ app.post('/register', (req: Request, res: Response) => {
     email,
     password,
     userAgent = undefined,
+    location = { longitude: 0, latitude: 0 },
   } = req.body;
   if (!email || !password) {
     return res.status(400).json({
@@ -85,11 +90,18 @@ app.post('/register', (req: Request, res: Response) => {
     email: email.trim().toLowerCase(),
     password: password.trim(),
     userAgent,
+    location,
     disabled: false,
   });
   return res.status(200).json({
     message: 'User registered successfully',
-    data: { firstName, lastName, email: email.trim().toLowerCase(), userAgent },
+    data: {
+      firstName,
+      lastName,
+      email: email.trim().toLowerCase(),
+      userAgent,
+      location,
+    },
   });
 });
 
@@ -120,8 +132,8 @@ app.post('/register', (req: Request, res: Response) => {
  *       401:
  *         description: Unauthorized
  */
-app.post('/login', (req: Request, res: Response) => {
-  const { email, password, userAgent } = req.body;
+app.post('/login', async (req: Request, res: Response) => {
+  const { email, password, userAgent, location } = req.body;
   const user = users.find(
     (u) =>
       u.email === email.trim().toLowerCase() &&
@@ -131,14 +143,26 @@ app.post('/login', (req: Request, res: Response) => {
   if (!user)
     return res.status(401).json({ message: 'Invalid email or password' });
 
-  if (user.userAgent !== userAgent) {
-    console.log(
-      `User agent mismatch. previous: ${user.userAgent}. current: ${userAgent}`
+  if (
+    user.userAgent !== userAgent ||
+    !isWithinGeofence(user.location, location)
+  ) {
+    await sendMail(
+      user.email,
+      returnMailBody(user.email, user.firstName, user.lastName, userAgent),
+      'Unexpected Location/Device Alert'
     );
+
+    console.log(
+      `User agent/location mismatch. previous: ${user.userAgent}. current: ${userAgent}`
+    );
+
+    // Update user account with new userAgent
     const userIndex = users.findIndex(
       (u) => u.email === email.trim().toLowerCase()
     );
     users[userIndex].userAgent = userAgent;
+    users[userIndex].location = location;
   }
 
   return res.status(200).json({
@@ -148,6 +172,7 @@ app.post('/login', (req: Request, res: Response) => {
       lastName: user.lastName,
       email: user.email,
       userAgent: user.userAgent,
+      location: user.location,
     },
   });
 });
